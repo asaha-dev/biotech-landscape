@@ -46,6 +46,12 @@ class Provenance(Record):
     status: Status
     sources: list[Source] = []
     last_checked: date
+    # Who or what wrote the record: "manual", or a tool id ("name@version") such as
+    # "ctgov@1", "regex-money@1" or "llm-extractor@1". Trust policy lives in code.
+    extracted_by: str = Field(default="manual", min_length=1)
+    # False until a person has checked it. The scheduled run uses this to decide
+    # what can merge automatically and what waits for review.
+    reviewed: bool = False
 
     @model_validator(mode="after")
     def verified_needs_a_source(self) -> Self:
@@ -94,7 +100,10 @@ class DealType(StrEnum):
 
 
 class Money(Record):
-    amount: Decimal = Field(ge=0)
+    # Always millions of `currency`: "$115M" is 115, "$2.75B" is 2750. The unit is in
+    # the field name so no writer can omit it; the upper bound (a trillion) is a
+    # plausibility check that catches a figure written out in full units.
+    millions: Decimal = Field(ge=0, lt=1_000_000)
     currency: CurrencyCode = "USD"
     as_of: date | None = None  # date of the figure, for later FX conversion
 
@@ -118,7 +127,7 @@ class Deal(Provenance):
         if self.upfront and self.headline:
             if self.upfront.currency != self.headline.currency:
                 raise ValueError("upfront and headline must use the same currency")
-            if self.headline.amount < self.upfront.amount:
+            if self.headline.millions < self.upfront.millions:
                 raise ValueError("headline value is below the upfront payment")
         return self
 
@@ -132,6 +141,45 @@ def sort_key(announced: str) -> tuple[int, int]:
     """Order partial dates chronologically; a bare year sorts before its months."""
     year, _, month = announced.partition("-")
     return int(year), int(month) if month else 0
+
+
+# --- Compute ----------------------------------------------------------------------
+
+
+class Ownership(StrEnum):
+    OWNED = "owned"  # on-prem or wholly owned, e.g. LillyPod
+    SHARED = "shared"  # joint venture or consortium, e.g. Gefion, Sferical
+    RENTED = "rented"  # cloud capacity under contract
+
+
+class ComputeCluster(Provenance):
+    id: Slug
+    org: Slug  # the Org that uses it; must exist (checked on load)
+    system: str  # e.g. "LillyPod, B300, on-prem"
+    gpus: int = Field(gt=0)
+    ownership: Ownership
+    announced: PartialDate | None = None  # the page doesn't date clusters yet
+    note: str = ""
+
+
+# --- Regulation -------------------------------------------------------------------
+
+
+class RegulatoryEvent(Provenance):
+    id: Slug
+    announced: PartialDate  # "2026-01", or "2024" when only the year is known
+    regulators: list[Slug] = Field(min_length=1)  # e.g. ["fda"], ["fda", "ema"]
+    title: str
+    summary: str
+    # An editorial judgement ("matters most for sponsors"), so only a reviewed
+    # record may carry it. An extractor reports events; a person ranks them.
+    milestone: bool = False
+
+    @model_validator(mode="after")
+    def milestone_needs_review(self) -> Self:
+        if self.milestone and not self.reviewed:
+            raise ValueError("only a reviewed event can be marked as a milestone")
+        return self
 
 
 # --- Papers -----------------------------------------------------------------------

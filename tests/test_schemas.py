@@ -6,11 +6,14 @@ import pytest
 from pydantic import ValidationError
 
 from biotech_landscape.schemas import (
+    ComputeCluster,
     Deal,
     DealType,
     Org,
+    Ownership,
     Paper,
     PaperSource,
+    RegulatoryEvent,
     Status,
     paper_key,
     sort_key,
@@ -28,8 +31,8 @@ def deal_data(**overrides: Any) -> dict[str, Any]:
         "layer": "Small molecule",
         "area": "Undisclosed indications",
         "terms": "Exclusive licence to preclinical oral therapeutics plus Pharma.AI",
-        "upfront": {"amount": "115"},
-        "headline": {"amount": "2750"},
+        "upfront": {"millions": "115"},
+        "headline": {"millions": "2750"},
         "status": "verified",
         "sources": [{"label": "CNBC", "url": "https://www.cnbc.com/2026/03/29/x.html"}],
         "last_checked": "2026-11-08",
@@ -42,7 +45,7 @@ def test_valid_deal_parses() -> None:
     deal = Deal.model_validate(deal_data())
     assert deal.status is Status.VERIFIED
     assert deal.deal_types == [DealType.ASSET_LICENCE, DealType.MODEL_LICENCE]
-    assert deal.upfront is not None and deal.upfront.amount == Decimal("115")
+    assert deal.upfront is not None and deal.upfront.millions == Decimal("115")
     assert deal.upfront.currency == "USD"
     assert deal.last_checked == date(2026, 11, 8)
     assert deal.partner_is_org
@@ -60,12 +63,18 @@ def test_memory_deal_may_have_no_source() -> None:
 
 def test_headline_below_upfront_is_rejected() -> None:
     with pytest.raises(ValidationError, match="below the upfront"):
-        Deal.model_validate(deal_data(headline={"amount": "100"}))
+        Deal.model_validate(deal_data(headline={"millions": "100"}))
 
 
 def test_mixed_currencies_are_rejected() -> None:
     with pytest.raises(ValidationError, match="same currency"):
-        Deal.model_validate(deal_data(headline={"amount": "2750", "currency": "EUR"}))
+        Deal.model_validate(deal_data(headline={"millions": "2750", "currency": "EUR"}))
+
+
+def test_money_in_units_not_millions_is_rejected() -> None:
+    # "$115M" written out in full instead of as 115.
+    with pytest.raises(ValidationError):
+        Deal.model_validate(deal_data(upfront={"millions": "115000000"}))
 
 
 def test_undisclosed_money_is_none_not_zero() -> None:
@@ -141,3 +150,83 @@ def test_paper_keeps_raw_affiliations() -> None:
 def test_org_id_must_be_a_slug(bad_id: str) -> None:
     with pytest.raises(ValidationError):
         Org(id=bad_id, name="Eli Lilly", short="Lilly", group="pharma", archetype="x")
+
+
+def test_provenance_defaults_to_manual_and_unreviewed() -> None:
+    deal = Deal.model_validate(deal_data())
+    assert deal.extracted_by == "manual"
+    assert not deal.reviewed
+
+
+def test_extracted_by_cannot_be_empty() -> None:
+    with pytest.raises(ValidationError):
+        Deal.model_validate(deal_data(extracted_by=""))
+
+
+def compute_data(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "id": "lilly-lillypod",
+        "org": "lilly",
+        "system": "LillyPod, B300, on-prem",
+        "gpus": 1016,
+        "ownership": "owned",
+        "status": "verified",
+        "sources": [{"label": "Lilly", "url": "https://investor.lilly.com/x"}],
+        "last_checked": "2026-11-08",
+    }
+    data.update(overrides)
+    return data
+
+
+def test_valid_compute_cluster_parses() -> None:
+    cluster = ComputeCluster.model_validate(compute_data())
+    assert cluster.ownership is Ownership.OWNED
+    assert cluster.announced is None
+
+
+def test_compute_cluster_needs_gpus() -> None:
+    with pytest.raises(ValidationError):
+        ComputeCluster.model_validate(compute_data(gpus=0))
+
+
+def test_compute_cluster_rejects_unknown_ownership() -> None:
+    with pytest.raises(ValidationError):
+        ComputeCluster.model_validate(compute_data(ownership="leased"))
+
+
+def regulatory_data(**overrides: Any) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "id": "fda-ema-ai-principles-2026",
+        "announced": "2026-01",
+        "regulators": ["fda", "ema"],
+        "title": "FDA–EMA: 10 guiding principles of good AI practice",
+        "summary": "Joint and voluntary; risk-based and human-centric.",
+        "status": "verified",
+        "sources": [{"label": "RAPS", "url": "https://www.raps.org/x"}],
+        "last_checked": "2026-11-08",
+    }
+    data.update(overrides)
+    return data
+
+
+def test_valid_regulatory_event_parses() -> None:
+    event = RegulatoryEvent.model_validate(regulatory_data())
+    assert event.regulators == ["fda", "ema"]
+    assert not event.milestone
+
+
+def test_regulatory_event_needs_a_regulator() -> None:
+    with pytest.raises(ValidationError):
+        RegulatoryEvent.model_validate(regulatory_data(regulators=[]))
+
+
+def test_unreviewed_event_cannot_be_a_milestone() -> None:
+    with pytest.raises(ValidationError, match="reviewed"):
+        RegulatoryEvent.model_validate(regulatory_data(milestone=True))
+
+
+def test_reviewed_event_can_be_a_milestone() -> None:
+    event = RegulatoryEvent.model_validate(
+        regulatory_data(milestone=True, reviewed=True)
+    )
+    assert event.milestone
