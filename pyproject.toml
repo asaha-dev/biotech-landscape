@@ -1,0 +1,47 @@
+[project]
+name = "biotech-landscape"
+version = "0.1.0"
+description = "Map how pharma and AI native biotechs use AI: deals, compute, data, modalities, publications and regulations"
+readme = "README.md"
+authors = [
+    { name = "asaha-dev", }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.14.3",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+biotech-landscape = "biotech_landscape:main"
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+    "types-pyyaml>=6.0.12.20261103",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
