@@ -164,7 +164,10 @@ TAXONOMY: dict[Dimension, tuple[Label, ...]] = {
                 "nanobod*",
                 "binder*",
                 "protein design",
-                "biologic*",
+                # Not "biologic*": that also matches "biological(ly)".
+                "biologics",
+                "biologic drug*",
+                "biologic therap*",
                 "protein therapeutic*",
             ),
         ),

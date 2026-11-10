@@ -6,8 +6,8 @@ threshold, keeping at most `top_k` labels per dimension. Biomedical relevance is
 decided by which of two prototype descriptions the paper is closer to.
 
 The embedding function is injected, so scoring is testable without downloading
-a model. `fastembed_embedder()` provides the real one (optional `embeddings`
-extra). Thresholds are starting points to calibrate in the evaluation step.
+a model. `fastembed_embedder()` provides the real one. Thresholds are starting
+points to calibrate in the evaluation step.
 """
 
 import hashlib
@@ -19,6 +19,7 @@ from typing import Any, Protocol
 
 import numpy as np
 import numpy.typing as npt
+from fastembed import TextEmbedding
 
 from biotech_landscape.schemas import Paper
 from biotech_landscape.tagging import PaperTags
@@ -204,15 +205,8 @@ def fastembed_embedder(
 ) -> Embed:
     """A real embedding function backed by fastembed (ONNX, no PyTorch).
 
-    Requires the optional extra: `uv sync --extra embeddings`. The model is
-    downloaded on first use and cached by fastembed.
+    The model is downloaded on first use and cached by fastembed.
     """
-    try:
-        from fastembed import TextEmbedding
-    except ImportError as e:  # pragma: no cover - depends on the optional extra
-        raise RuntimeError(
-            "the embedding tagger needs the optional extra: uv sync --extra embeddings"
-        ) from e
     encoder = TextEmbedding(model_name=model, cache_dir=str(cache_dir))
 
     def embed(texts: Sequence[str]) -> Matrix:

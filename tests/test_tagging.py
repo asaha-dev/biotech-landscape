@@ -62,7 +62,7 @@ def test_tags_across_dimensions(tagger: KeywordTagger) -> None:
     assert t.data == ["Omics / single-cell"]
     assert t.area == ["Oncology"]
     assert t.bio_relevant
-    assert t.tagger == "keyword@1"
+    assert t.tagger == "keyword@2"
 
 
 def test_shap_is_explainability_not_interpretability(tagger: KeywordTagger) -> None:
@@ -130,3 +130,22 @@ def test_tag_uses_title_and_abstract_keyed_by_paper(tagger: KeywordTagger) -> No
     assert tags["10.1/x"].method == ["Geometric / graph learning"]
     assert tags["10.1/x"].modality == ["Small molecule"]
     assert tags["10.1/x"].bio_relevant
+
+
+@pytest.mark.parametrize(
+    ("text", "is_antibody"),
+    [
+        # Regression: "biologic*" matched "biological" and mis-tagged CellFlow.
+        (
+            "CellFlow enables generative single-cell phenotype modeling of biological systems",
+            False,
+        ),
+        ("biologically plausible neural networks", False),
+        ("manufacturing of biologics at scale", True),
+        ("a biologic drug for psoriasis", True),
+    ],
+)
+def test_biological_is_not_a_biologic(
+    tagger: KeywordTagger, text: str, is_antibody: bool
+) -> None:
+    assert ("Antibody / protein" in tagger.tag_text(text).modality) is is_antibody

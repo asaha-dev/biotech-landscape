@@ -8,19 +8,16 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "fastembed>=0.9.1",
     "httpx>=0.28.1",
+    "numpy>=2.5.4",
     "pydantic>=2.14.3",
     "pyyaml>=6.0.3",
+    "sqlite-vec>=0.1.9",
 ]
 
 [project.scripts]
 biotech-landscape = "biotech_landscape:main"
-
-[project.optional-dependencies]
-embeddings = [
-    "fastembed>=0.9.1",
-    "sqlite-vec>=0.1.9",
-]
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]
@@ -29,10 +26,8 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "mypy>=2.4.1",
-    "numpy>=2.5.4",
     "pytest>=9.2.0",
     "ruff>=0.17.4",
-    "sqlite-vec>=0.1.9",
     "types-pyyaml>=6.0.12.20261103",
 ]
 

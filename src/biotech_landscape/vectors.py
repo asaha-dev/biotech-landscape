@@ -9,8 +9,6 @@ transactions, and SQL joins with organisations.
 Vectors are grouped by *space*: the model plus anything that changes the vectors
 (e.g. an instruction prefix). Changing similarity thresholds or labels reuses the
 stored vectors; changing the model or prefix starts a new space.
-
-Requires the optional extra: `uv sync --extra embeddings`.
 """
 
 import sqlite3
@@ -18,6 +16,7 @@ from collections.abc import Iterable, Mapping
 
 import numpy as np
 import numpy.typing as npt
+import sqlite_vec
 
 from biotech_landscape.store import PaperStore
 
@@ -27,12 +26,6 @@ _SEP = "::"
 
 
 def _load_sqlite_vec(conn: sqlite3.Connection) -> None:
-    try:
-        import sqlite_vec
-    except ImportError as e:
-        raise RuntimeError(
-            "the vector index needs the optional extra: uv sync --extra embeddings"
-        ) from e
     conn.enable_load_extension(True)
     try:
         sqlite_vec.load(conn)

@@ -9,3 +9,6 @@ __pycache__/
 dist/
 data/papers.db
 private/
+
+# Private plans and status (never committed)
+plans.md

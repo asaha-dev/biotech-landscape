@@ -13,7 +13,7 @@ from biotech_landscape.tagging import PaperTags
 from biotech_landscape.tagging.labels import BIO_KEYWORDS, TAXONOMY, Dimension
 
 NAME = "keyword"
-VERSION = "1"  # bump when keywords or matching rules change
+VERSION = "2"  # bump when keywords or matching rules change
 
 
 def compile_keywords(keywords: Iterable[str]) -> re.Pattern[str]:

@@ -2,8 +2,8 @@
 
 Every tagger takes papers and returns PaperTags drawn from the same labels
 (see labels.py), so results can be swapped, combined or compared directly.
-The keyword tagger is the dependency-free default; embedding and Claude taggers
-are optional extras.
+The keyword tagger is the default; the embedding tagger runs a local model, and
+model-based taggers such as Claude are optional.
 """
 
 from collections.abc import Sequence
